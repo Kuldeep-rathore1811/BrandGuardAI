@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+psycopg[binary]
+python-dotenv
+PyMuPDF
+python-docx
+Pillow
+opencv-python-headless
