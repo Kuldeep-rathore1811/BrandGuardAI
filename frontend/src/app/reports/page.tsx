@@ -44,7 +44,7 @@ export default function Reports() {
     async function fetchReports() {
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/analysis-history"
+          "https://brandguardai-jgyc.onrender.com/analysis-history"
         );
 
         if (!response.ok) {

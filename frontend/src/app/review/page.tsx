@@ -78,7 +78,7 @@ export default function Review() {
       formData.append("file", file);
 
       const uploadResponse = await fetch(
-        "http://127.0.0.1:8000/upload-document",
+        "https://brandguardai-jgyc.onrender.com/upload-document",
         {
           method: "POST",
           body: formData,
@@ -100,7 +100,7 @@ export default function Review() {
       setMessage("Document uploaded! Analysing brand compliance...");
 
       const analysisResponse = await fetch(
-        `http://127.0.0.1:8000/analyze-document/${newDocumentId}`,
+        `https://brandguardai-jgyc.onrender.com/analyze-document/${newDocumentId}`,
         {
           method: "POST",
         }

@@ -19,7 +19,7 @@ useEffect(() => {
   async function fetchGuidelines() {
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/guidelines"
+        "https://brandguardai-jgyc.onrender.com/guidelines"
       );
 
       if (!response.ok) {
@@ -57,8 +57,8 @@ useEffect(() => {
 
   try {
     const url = guidelineId
-      ? `http://127.0.0.1:8000/guidelines/${guidelineId}`
-      : "http://127.0.0.1:8000/guidelines";
+      ? `https://brandguardai-jgyc.onrender.com/guidelines/${guidelineId}`
+      : "https://brandguardai-jgyc.onrender.com/guidelines";
 
     const method = guidelineId ? "PUT" : "POST";
 
