@@ -19,12 +19,15 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    =["http://localhostallow_origins:3000",
-        "https://brand-guard-ai-one.vercel.app"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://brand-guard-ai-one.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # Structure of the brand guidelines received from the frontend
 class BrandGuidelines(BaseModel):
     company_name: str
