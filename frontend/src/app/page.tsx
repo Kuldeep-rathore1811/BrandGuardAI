@@ -2,7 +2,7 @@
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      
+
       {/* Navigation Bar */}
       <nav className="flex items-center justify-between px-8 py-6 border-b border-slate-800">
         <h1 className="text-2xl font-bold tracking-tight">
@@ -13,10 +13,11 @@ export default function Home() {
           <a href="#features" className="hover:text-blue-400">Features</a>
           <a href="#about" className="hover:text-blue-400">About</a>
           <a href="#contact" className="hover:text-blue-400">Contact</a>
+          <a href="/dashboard" className="hover:text-blue-400">Dashboard</a>
         </div>
 
         <a
-          href="#features"
+          href="/dashboard"
           className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500"
         >
           Get Started
@@ -44,7 +45,7 @@ export default function Home() {
 
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
           <a
-            href="#features"
+            href="/dashboard"
             className="rounded-lg bg-blue-600 px-8 py-3 font-semibold hover:bg-blue-500"
           >
             Explore Platform →
@@ -72,32 +73,55 @@ export default function Home() {
           </div>
 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-700 bg-slate-950 p-7">
+
+            {/* Brand Guidelines */}
+            <a
+              href="/guidelines"
+              className="block rounded-xl border border-slate-700 bg-slate-950 p-7 transition hover:border-blue-500 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <div className="text-3xl">📋</div>
-              <h3 className="mt-5 text-xl font-semibold">Brand Guidelines</h3>
+              <h3 className="mt-5 text-xl font-semibold">Brand Guidelines →</h3>
               <p className="mt-3 leading-7 text-slate-400">
                 Store approved brand rules, terminology, tone of voice
                 and visual identity requirements.
               </p>
-            </div>
+              <p className="mt-5 text-sm font-semibold text-blue-400">
+                Manage Guidelines
+              </p>
+            </a>
 
-            <div className="rounded-xl border border-slate-700 bg-slate-950 p-7">
+            {/* Content Review */}
+            <a
+              href="/review"
+              className="block rounded-xl border border-slate-700 bg-slate-950 p-7 transition hover:border-blue-500 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <div className="text-3xl">🤖</div>
-              <h3 className="mt-5 text-xl font-semibold">AI Content Review</h3>
+              <h3 className="mt-5 text-xl font-semibold">AI Content Review →</h3>
               <p className="mt-3 leading-7 text-slate-400">
                 Analyse content to identify incorrect claims,
                 inconsistent messaging and brand violations.
               </p>
-            </div>
+              <p className="mt-5 text-sm font-semibold text-blue-400">
+                Review Content
+              </p>
+            </a>
 
-            <div className="rounded-xl border border-slate-700 bg-slate-950 p-7">
+            {/* Reports */}
+            <a
+              href="/reports"
+              className="block rounded-xl border border-slate-700 bg-slate-950 p-7 transition hover:border-blue-500 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <div className="text-3xl">📊</div>
-              <h3 className="mt-5 text-xl font-semibold">Review Reports</h3>
+              <h3 className="mt-5 text-xl font-semibold">Review Reports →</h3>
               <p className="mt-3 leading-7 text-slate-400">
                 Understand detected issues, suggested corrections
                 and content review history.
               </p>
-            </div>
+              <p className="mt-5 text-sm font-semibold text-blue-400">
+                View Reports
+              </p>
+            </a>
+
           </div>
         </div>
       </section>
