@@ -1,6 +1,6 @@
 
 from io import BytesIO
-
+import shutil
 import pymupdf
 import pytesseract
 
@@ -8,10 +8,15 @@ from PIL import Image
 from docx import Document
 
 
-# Tesseract installation path on Windows
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+# Automatically detect Tesseract on Windows or Linux (Render)
+tesseract_path = shutil.which("tesseract")
+
+if tesseract_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    pytesseract.pytesseract.tesseract_cmd = (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    )
 
 
 # 1. Extract text from PDF and DOCX files
