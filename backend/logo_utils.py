@@ -28,21 +28,40 @@ def verify_logo(image_bytes):
             "message": "Could not read the logo image."
         }
 
-    # Resize very large images for faster processing
+    # Safely resize large images
     def resize_image(image):
+
+        if image is None or image.size == 0:
+            return None
+
         height, width = image.shape[:2]
 
+        if height <= 0 or width <= 0:
+            return None
+
         if max(height, width) > 1200:
+
             scale = 1200 / max(height, width)
+
+            new_width = max(1, int(width * scale))
+            new_height = max(1, int(height * scale))
+
             image = cv2.resize(
                 image,
-                (int(width * scale), int(height * scale))
+                (new_width, new_height)
             )
 
         return image
 
     reference = resize_image(reference)
     uploaded = resize_image(uploaded)
+
+    if reference is None or uploaded is None:
+        return {
+            "status": "Inconclusive",
+            "matching_features": 0,
+            "message": "Invalid or empty image dimensions."
+        }
 
     # Convert images to grayscale
     reference_gray = cv2.cvtColor(
@@ -68,6 +87,7 @@ def verify_logo(image_bytes):
         return {
             "status": "Inconclusive",
             "matching_features": 0,
+            "geometric_inliers": 0,
             "message": "Not enough visual features were detected."
         }
 
@@ -85,6 +105,7 @@ def verify_logo(image_bytes):
     for pair in matches:
 
         if len(pair) == 2:
+
             first, second = pair
 
             if first.distance < 0.75 * second.distance:
@@ -118,6 +139,7 @@ def verify_logo(image_bytes):
             cv2.RANSAC,
             5.0
         )
+
     except cv2.error:
         homography = None
         mask = None
@@ -135,16 +157,28 @@ def verify_logo(image_bytes):
 
     # Final prototype classification
     if inliers >= 15 and inlier_ratio >= 0.35:
+
         status = "Likely logo match"
-        message = "Visual features and geometric alignment support a logo match."
+        message = (
+            "Visual features and geometric alignment "
+            "support a logo match."
+        )
 
     elif inliers < 5 or inlier_ratio < 0.15:
+
         status = "Logo not verified"
-        message = "The uploaded image does not sufficiently resemble the approved logo."
+        message = (
+            "The uploaded image does not sufficiently "
+            "resemble the approved logo."
+        )
 
     else:
+
         status = "Inconclusive"
-        message = "Some similarities were found, but the match is not strong enough."
+        message = (
+            "Some similarities were found, but the match "
+            "is not strong enough."
+        )
 
     return {
         "status": status,

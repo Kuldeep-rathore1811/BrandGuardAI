@@ -7,3 +7,5 @@ PyMuPDF
 python-docx
 Pillow
 opencv-python-headless
+google-genai
+groq

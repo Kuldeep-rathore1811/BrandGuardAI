@@ -9,6 +9,8 @@ from compliance_utils import check_compliance
 from psycopg.types.json import Jsonb
 from visual_utils import analyze_image_colors
 from logo_utils import verify_logo
+from semantic_utils import analyze_semantically
+from claim_verification import verify_promotional_claims
 
 app = FastAPI(
     title="BrandGuard AI",
@@ -283,6 +285,7 @@ async def upload_document(file: UploadFile = File(...)):
             connection.close()
 
 
+
 @app.post("/analyze-document/{document_id}")
 def analyze_document(document_id: int):
 
@@ -337,13 +340,119 @@ def analyze_document(document_id: int):
             "visual_guidelines": guideline[5]
         }
 
-        # 3. Run text compliance analysis
+        document_text = document[2] or ""
+
+        # 3. Existing rule-based compliance analysis
         result = check_compliance(
-            document[2] or "",
+            document_text,
             guidelines
         )
 
-        # 4. Get stored document images
+        # 4. NEW: Groq semantic AI analysis
+        semantic_result = {
+            "status": "Unavailable",
+            "overall_assessment": "",
+            "issues": []
+        }
+
+        try:
+            if document_text.strip():
+
+                ai_result = analyze_semantically(
+                    document_text,
+                    guidelines
+                )
+
+                semantic_result = {
+                    "status": "Completed",
+                    "overall_assessment": ai_result.get(
+                        "overall_assessment", ""
+                    ),
+                    "issues": ai_result.get("issues", [])
+                }
+
+                
+                
+                # Convert AI findings and remove exact duplicates
+                unique_ai_issues = []
+
+                for ai_issue in semantic_result["issues"]:
+
+                    ai_word = str(
+                        ai_issue.get("word") or ""
+                    ).strip().lower()
+
+                    ai_type = str(
+                        ai_issue.get("type") or ""
+                    ).strip().lower()
+
+                    is_duplicate = False
+
+                    for existing_issue in result["issues"]:
+
+                        existing_word = str(
+                            existing_issue.get("word") or ""
+                        ).strip().lower()
+
+                        existing_type = str(
+                            existing_issue.get("type") or ""
+                        ).strip().lower()
+
+                        # Remove exact terminology duplicates only
+                        if (
+                            ai_word
+                            and ai_word == existing_word
+                            and "terminology" in ai_type
+                            and "terminology" in existing_type
+                        ):
+                            is_duplicate = True
+                            break
+
+                    if not is_duplicate:
+
+                        frontend_issue = {
+                            **ai_issue,
+                            "source": "Groq AI"
+                        }
+
+                        unique_ai_issues.append(frontend_issue)
+                        result["issues"].append(frontend_issue)
+
+                # Keep unique AI findings in semantic results
+                semantic_result["issues"] = unique_ai_issues
+
+                # Update compliance score for additional AI findings
+                ai_issue_count = len(unique_ai_issues)
+
+                result["compliance_score"] = max(
+                    0,
+                    result["compliance_score"] - (ai_issue_count * 10)
+                )
+
+                result["total_issues"] += ai_issue_count
+
+        except Exception as ai_error:
+
+            # Preserve existing analysis if AI fails
+            semantic_result = {
+                "status": "Failed",
+                "overall_assessment": (
+                    "AI analysis could not be completed. "
+                    "Rule-based analysis is still available."
+                ),
+                "issues": [],
+                "error": str(ai_error)
+            }
+
+            print(
+                "Groq semantic analysis failed:",
+                str(ai_error)
+            )
+
+        # Verify promotional claims
+        claim_verification = verify_promotional_claims(document_text)
+
+        # 5. Get stored document images
         cursor.execute(
             """
             SELECT id, image_data, page_number
@@ -359,9 +468,10 @@ def analyze_document(document_id: int):
         visual_issues = []
         logo_results = []
 
-        # 5. Analyse image colours
+        # 6. Analyze image colours and logos
         for image in images:
 
+            # Image colour analysis
             visual_result = analyze_image_colors(
                 image[1],
                 guidelines["visual_guidelines"]
@@ -372,7 +482,7 @@ def analyze_document(document_id: int):
 
             visual_results.append(visual_result)
 
-            # 6. Verify logo
+            # Logo verification
             logo_result = verify_logo(image[1])
 
             logo_result["image_id"] = image[0]
@@ -380,32 +490,44 @@ def analyze_document(document_id: int):
 
             logo_results.append(logo_result)
 
-            # 7. Record potential colour mismatches
-            for mismatch in visual_result.get("mismatches", []):
+            # Record colour mismatches
+            for mismatch in visual_result.get(
+                "mismatches", []
+            ):
 
                 visual_issues.append({
                     "type": "Visual Brand Color",
                     "severity": "Medium",
                     "word": str(mismatch["rgb"]),
-                    "message": "A dominant image colour may not match the approved brand colours.",
-                    "suggestion": "Review this image against the approved brand colour guidelines."
+                    "message": (
+                        "A dominant image colour may not "
+                        "match the approved brand colours."
+                    ),
+                    "suggestion": (
+                        "Review this image against the "
+                        "approved brand colour guidelines."
+                    )
                 })
 
-        # 7. Combine text and visual results
+        # 7. Combine visual and text results
         result["issues"].extend(visual_issues)
 
         result["total_issues"] += len(visual_issues)
 
         result["compliance_score"] = max(
             0,
-            result["compliance_score"] - (len(visual_issues) * 10)
+            result["compliance_score"]
+            - (len(visual_issues) * 10)
         )
 
         result["visual_analysis"] = visual_results
         result["logo_analysis"] = logo_results
 
+        # Save semantic analysis separately in JSON result
+        result["semantic_analysis"] = semantic_result
+        result["claim_verification"] = claim_verification
 
-        # 8. Save analysis in PostgreSQL
+        # 8. Save complete analysis in PostgreSQL
         cursor.execute(
             """
             INSERT INTO analysis_history
@@ -426,17 +548,25 @@ def analyze_document(document_id: int):
         connection.commit()
 
         # 9. Return complete analysis
+        
         return {
             "analysis_id": analysis_id,
             "document_id": document[0],
             "filename": document[1],
             "company_name": guidelines["company_name"],
+
             "compliance_score": result["compliance_score"],
             "total_issues": result["total_issues"],
+
             "issues": result["issues"],
+
+            "semantic_analysis": semantic_result,
+            "claim_verification": claim_verification,
+
             "visual_analysis": visual_results,
             "logo_analysis": logo_results
-        }
+            }
+
 
     except HTTPException:
         connection.rollback()

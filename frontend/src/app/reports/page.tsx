@@ -1,29 +1,23 @@
 
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-
-interface ComplianceIssue {
-  severity: string;
-  type?: string;
-  message?: string;
-}
-
-interface LogoAnalysis {
-  status: string;
-  matching_features: number;
-  geometric_inliers: number;
-  inlier_ratio?: number;
-  message: string;
-  image_id: number;
-  page_number?: number | null;
-}
-
-interface AnalysisResultData {
-  issues?: ComplianceIssue[];
-  logo_analysis?: LogoAnalysis[];
-}
+import {
+  LayoutDashboard,
+  Settings,
+  FileText,
+  Upload,
+  BarChart3,
+  ShieldCheck,
+  Search,
+  RefreshCw,
+  FileCheck,
+  AlertTriangle,
+  Clock,
+  ArrowUpRight,
+  ExternalLink,
+} from "lucide-react";
 
 interface AnalysisReport {
   analysis_id: number;
@@ -32,38 +26,49 @@ interface AnalysisReport {
   compliance_score: number;
   total_issues: number;
   analyzed_at: string;
-  analysis_result?: AnalysisResultData;
 }
 
-export default function Reports() {
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+export default function ReportsPage() {
   const [reports, setReports] = useState<AnalysisReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch(`${API_BASE}/analysis-history`);
+
+      if (!response.ok) {
+        throw new Error("Unable to load analysis history.");
+      }
+
+      const data = await response.json();
+      setReports(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while loading reports."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchReports() {
-      try {
-        const response = await fetch(
-          "https://brandguardai-jgyc.onrender.com/analysis-history"
-        );
-
-        if (!response.ok) {
-          throw new Error("Unable to load analysis history.");
-        }
-
-        const data = await response.json();
-        setReports(data);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Something went wrong."
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchReports();
   }, []);
+
+  const filteredReports = useMemo(() => {
+    return reports.filter((report) =>
+      report.filename?.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [reports, search]);
 
   const totalReviews = reports.length;
 
@@ -71,494 +76,320 @@ export default function Reports() {
     totalReviews > 0
       ? Math.round(
           reports.reduce(
-            (total, report) => total + report.compliance_score,
+            (total, report) => total + Number(report.compliance_score || 0),
             0
           ) / totalReviews
         )
       : 0;
 
   const totalIssues = reports.reduce(
-    (total, report) => total + report.total_issues,
+    (total, report) => total + Number(report.total_issues || 0),
     0
   );
 
-  const approvedContent = reports.filter(
-    (report) => report.compliance_score >= 80
-  ).length;
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 50) return "text-orange-500";
+    return "text-red-500";
+  };
 
-  // Collect logo verification results from all reports.
-  const allLogoResults = reports.flatMap(
-    (report) => report.analysis_result?.logo_analysis || []
-  );
-
-  const totalLogoChecks = allLogoResults.length;
-
-  const matchedLogos = allLogoResults.filter(
-    (logo) => logo.status === "Likely logo match"
-  ).length;
-
-  const unverifiedLogos = allLogoResults.filter(
-    (logo) => logo.status === "Logo not verified"
-  ).length;
-
-  const inconclusiveLogos = allLogoResults.filter(
-    (logo) => logo.status === "Inconclusive"
-  ).length;
-
-  const statistics = [
-    { title: "Total Reviews", value: totalReviews },
-    { title: "Average Compliance", value: `${averageScore}%` },
-    { title: "Issues Detected", value: totalIssues },
-    { title: "Approved Content", value: approvedContent },
-  ];
-
-  const getLogoStatusStyle = (status: string) => {
-    if (status === "Likely logo match") {
-      return "bg-green-500/20 text-green-400";
-    }
-
-    if (status === "Logo not verified") {
-      return "bg-red-500/20 text-red-400";
-    }
-
-    return "bg-yellow-500/20 text-yellow-400";
+  const getScoreLabel = (score: number) => {
+    if (score >= 80) return "Good";
+    if (score >= 50) return "Needs improvement";
+    return "Critical";
   };
 
   return (
-    <main className="min-h-screen bg-[#0b1120] text-white flex">
+    <div className="min-h-screen bg-[#F4EDE0] text-[#14213D] md:flex">
 
       {/* Sidebar */}
-      <aside className="w-64 bg-[#111c30] p-6 hidden md:block">
-        <h1 className="text-2xl font-bold text-blue-400 mb-10">
-          BrandGuard AI
-        </h1>
+      <aside className="w-full bg-[#14213D] text-white md:fixed md:inset-y-0 md:left-0 md:flex md:w-64 md:flex-col">
+        <div className="border-b border-white/10 px-6 py-7">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6B5B]">
+              <ShieldCheck size={23} />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">BrandGuard AI</h1>
+              <p className="text-xs text-white/60">Brand protection platform</p>
+            </div>
+          </div>
+        </div>
 
-        <nav className="space-y-5">
-          <Link
-            href="/dashboard"
-            className="block text-gray-400 hover:text-white"
-          >
+        <nav className="flex gap-1 overflow-x-auto p-4 md:flex-1 md:flex-col">
+          <Link href="/dashboard" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition hover:bg-white/10 hover:text-white">
+            <LayoutDashboard size={19} />
             Overview
           </Link>
 
-          <Link
-            href="/guidelines"
-            className="block text-gray-400 hover:text-white"
-          >
+          <Link href="/guidelines" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition hover:bg-white/10 hover:text-white">
+            <Settings size={19} />
             Brand Guidelines
           </Link>
 
-          <Link
-            href="/review"
-            className="block text-gray-400 hover:text-white"
-          >
+          <Link href="/review" className="flex shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/70 transition hover:bg-white/10 hover:text-white">
+            <Upload size={19} />
             Content Review
           </Link>
 
-          <Link
-            href="/reports"
-            className="block text-blue-400 font-semibold"
-          >
+          <Link href="/reports" className="flex shrink-0 items-center gap-3 rounded-xl bg-[#FF6B5B] px-4 py-3 text-sm font-semibold text-white">
+            <BarChart3 size={19} />
             Reports
           </Link>
-
-          <Link
-            href="/"
-            className="block text-gray-400 hover:text-white"
-          >
-            Back to Website
-          </Link>
         </nav>
+
+        <div className="hidden border-t border-white/10 p-5 md:block">
+          <p className="text-xs text-white/50">AI-powered brand governance</p>
+          <p className="mt-1 text-sm font-medium">Protect your brand identity.</p>
+        </div>
       </aside>
 
       {/* Main Content */}
-      <section className="flex-1 p-8 md:p-10">
+      <main className="min-w-0 flex-1 p-5 sm:p-8 md:ml-64 lg:p-10">
 
-        <div className="mb-8">
-          <p className="text-blue-400 text-sm mb-2">
-            BRAND ANALYTICS
-          </p>
+        {/* Header */}
+        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-[#FF6B5B]">
+              Performance & insights
+            </p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Reports & Analytics
+            </h2>
+            <p className="mt-2 text-sm text-[#687386]">
+              Track content reviews and monitor your brand compliance.
+            </p>
+          </div>
 
-          <h2 className="text-3xl font-bold">
-            Reports & Analytics
-          </h2>
-
-          <p className="text-gray-400 mt-2">
-            Monitor brand compliance and review content performance.
-          </p>
+          <button
+            onClick={fetchReports}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 rounded-xl bg-[#14213D] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#24395F] disabled:opacity-60"
+          >
+            <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
+            Refresh Reports
+          </button>
         </div>
 
-        {loading ? (
-          <p className="text-blue-400">Loading reports...</p>
-        ) : error ? (
-          <div className="bg-red-900/20 border border-red-700 p-5 rounded-xl text-red-300">
-            {error}
+        {/* Statistics */}
+        <div className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+
+          <div className="rounded-2xl border border-[#E5DED2] bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="rounded-xl bg-blue-50 p-3 text-[#14213D]">
+                <FileCheck size={23} />
+              </div>
+              <ArrowUpRight className="text-[#687386]" size={20} />
+            </div>
+            <p className="mt-5 text-sm font-medium text-[#687386]">
+              Total Content Reviews
+            </p>
+            <h3 className="mt-1 text-3xl font-bold">{totalReviews}</h3>
+            <p className="mt-2 text-xs text-[#687386]">
+              Documents analyzed
+            </p>
           </div>
-        ) : (
-          <>
-            {/* Statistics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-              {statistics.map((item) => (
-                <div
-                  key={item.title}
-                  className="bg-[#17243a] p-6 rounded-xl border border-gray-700"
+
+          <div className="rounded-2xl border border-[#E5DED2] bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="rounded-xl bg-orange-50 p-3 text-[#FF6B5B]">
+                <BarChart3 size={23} />
+              </div>
+              <ArrowUpRight className="text-[#687386]" size={20} />
+            </div>
+            <p className="mt-5 text-sm font-medium text-[#687386]">
+              Average Compliance Score
+            </p>
+            <h3 className="mt-1 text-3xl font-bold">{averageScore}%</h3>
+            <p className="mt-2 text-xs text-[#687386]">
+              Across all analyzed documents
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#E5DED2] bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="rounded-xl bg-red-50 p-3 text-red-500">
+                <AlertTriangle size={23} />
+              </div>
+              <ArrowUpRight className="text-[#687386]" size={20} />
+            </div>
+            <p className="mt-5 text-sm font-medium text-[#687386]">
+              Total Issues Detected
+            </p>
+            <h3 className="mt-1 text-3xl font-bold">{totalIssues}</h3>
+            <p className="mt-2 text-xs text-[#687386]">
+              Issues found during content reviews
+            </p>
+          </div>
+        </div>
+
+        {/* History Section */}
+        <section className="overflow-hidden rounded-2xl border border-[#E5DED2] bg-white shadow-sm">
+
+          <div className="flex flex-col justify-between gap-4 border-b border-[#E5DED2] p-6 sm:flex-row sm:items-center">
+            <div>
+              <h3 className="text-xl font-bold">Analysis History</h3>
+              <p className="mt-1 text-sm text-[#687386]">
+                View all previously analyzed documents.
+              </p>
+            </div>
+
+            <div className="relative w-full sm:max-w-xs">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#687386]"
+              />
+              <input
+                type="text"
+                placeholder="Search documents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-[#E5DED2] bg-[#FAF8F4] py-3 pl-10 pr-4 text-sm outline-none transition focus:border-[#FF6B5B]"
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+              <RefreshCw size={30} className="animate-spin text-[#FF6B5B]" />
+              <p className="mt-4 text-sm font-medium">Loading reports...</p>
+            </div>
+          ) : error ? (
+            <div className="px-6 py-16 text-center">
+              <AlertTriangle className="mx-auto text-red-500" size={35} />
+              <p className="mt-4 font-semibold">Unable to load reports</p>
+              <p className="mt-2 text-sm text-[#687386]">{error}</p>
+              <button
+                onClick={fetchReports}
+                className="mt-5 rounded-xl bg-[#14213D] px-5 py-3 text-sm font-semibold text-white"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : filteredReports.length === 0 ? (
+            <div className="px-6 py-20 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F4EDE0] text-[#14213D]">
+                <FileText size={30} />
+              </div>
+              <h4 className="mt-5 text-lg font-bold">
+                {search ? "No matching reports" : "No reports yet"}
+              </h4>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-[#687386]">
+                {search
+                  ? "Try searching with a different document name."
+                  : "Upload and analyze your first document to see its report here."}
+              </p>
+              {!search && (
+                <Link
+                  href="/review"
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#FF6B5B] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#f45b4b]"
                 >
-                  <p className="text-gray-400 text-sm">
-                    {item.title}
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-3 text-blue-400">
-                    {item.value}
-                  </h3>
-                </div>
-              ))}
+                  <Upload size={17} />
+                  Review Content
+                </Link>
+              )}
             </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[750px] text-left">
+                <thead className="bg-[#FAF8F4] text-xs uppercase tracking-wider text-[#687386]">
+                  <tr>
+                    <th className="px-6 py-4 font-semibold">Document</th>
+                    <th className="px-6 py-4 font-semibold">Analysis ID</th>
+                    <th className="px-6 py-4 font-semibold">Compliance</th>
+                    <th className="px-6 py-4 font-semibold">Issues</th>
+                    <th className="px-6 py-4 font-semibold">Review Date</th>
+                    <th className="px-6 py-4 font-semibold">Status</th>
+                  </tr>
+                </thead>
 
-            {/* Overall Compliance */}
-            <div className="bg-[#17243a] border border-gray-700 rounded-xl p-6 mb-8">
-              <h3 className="text-xl font-semibold mb-5">
-                Overall Brand Compliance
-              </h3>
-
-              <div className="flex items-center gap-6">
-                <div className="w-28 h-28 rounded-full border-8 border-blue-400 flex items-center justify-center">
-                  <span className="text-3xl font-bold">
-                    {averageScore}%
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-blue-400 font-semibold">
-                    {totalReviews === 0
-                      ? "No Reviews Yet"
-                      : averageScore >= 80
-                      ? "Good Brand Consistency"
-                      : "Improvement Needed"}
-                  </p>
-
-                  <p className="text-gray-400 text-sm mt-2">
-                    {totalReviews === 0
-                      ? "Upload and analyze a document to see your compliance score."
-                      : `Average score calculated from ${totalReviews} document analyses.`}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Issue Summary */}
-            <div className="bg-[#17243a] border border-gray-700 rounded-xl p-6 mb-8">
-              <h3 className="text-xl font-semibold mb-5">
-                Issue Summary
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                <div className="bg-[#202f48] p-5 rounded-lg">
-                  <p className="text-red-400 font-semibold">
-                    High Severity Issues
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-2">
-                    {reports.reduce((total, report) => {
-                      const issues =
-                        report.analysis_result?.issues || [];
-
-                      return (
-                        total +
-                        issues.filter(
-                          (issue) => issue.severity === "High"
-                        ).length
-                      );
-                    }, 0)}
-                  </h3>
-                </div>
-
-                <div className="bg-[#202f48] p-5 rounded-lg">
-                  <p className="text-yellow-400 font-semibold">
-                    Medium Severity Issues
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-2">
-                    {reports.reduce((total, report) => {
-                      const issues =
-                        report.analysis_result?.issues || [];
-
-                      return (
-                        total +
-                        issues.filter(
-                          (issue) => issue.severity === "Medium"
-                        ).length
-                      );
-                    }, 0)}
-                  </h3>
-                </div>
-
-              </div>
-
-              <p className="text-gray-400 text-sm mt-4">
-                These counts are based on the terminology checks currently implemented.
-              </p>
-            </div>
-
-            {/* Logo Verification Summary */}
-            <div className="bg-[#17243a] border border-gray-700 rounded-xl p-6 mb-8">
-
-              <h3 className="text-xl font-semibold mb-2">
-                Logo Verification Summary
-              </h3>
-
-              <p className="text-gray-400 text-sm mb-6">
-                Overview of logo verification results across analyzed documents.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-
-                <div className="bg-[#202f48] p-5 rounded-lg">
-                  <p className="text-gray-400 text-sm">
-                    Total Logo Checks
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-2 text-blue-400">
-                    {totalLogoChecks}
-                  </h3>
-                </div>
-
-                <div className="bg-[#202f48] p-5 rounded-lg">
-                  <p className="text-green-400 text-sm font-semibold">
-                    Likely Matches
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-2 text-green-400">
-                    {matchedLogos}
-                  </h3>
-                </div>
-
-                <div className="bg-[#202f48] p-5 rounded-lg">
-                  <p className="text-red-400 text-sm font-semibold">
-                    Not Verified
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-2 text-red-400">
-                    {unverifiedLogos}
-                  </h3>
-                </div>
-
-                <div className="bg-[#202f48] p-5 rounded-lg">
-                  <p className="text-yellow-400 text-sm font-semibold">
-                    Inconclusive
-                  </p>
-
-                  <h3 className="text-3xl font-bold mt-2 text-yellow-400">
-                    {inconclusiveLogos}
-                  </h3>
-                </div>
-
-              </div>
-
-              {/* Individual Logo Results */}
-              <div className="mt-8">
-
-                <h4 className="text-lg font-semibold mb-4">
-                  Individual Logo Verification Results
-                </h4>
-
-                {totalLogoChecks === 0 ? (
-                  <div className="bg-[#202f48] p-5 rounded-lg text-gray-400 text-sm">
-                    No logo verification results found. Upload and analyze a document containing images to see results here.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-
-                    {reports.map((report) => {
-                      const logoResults =
-                        report.analysis_result?.logo_analysis || [];
-
-                      if (logoResults.length === 0) {
-                        return null;
-                      }
-
-                      return (
-                        <div
-                          key={report.analysis_id}
-                          className="bg-[#202f48] rounded-lg p-5"
-                        >
-
-                          <div className="mb-4">
-                            <p className="font-semibold">
+                <tbody className="divide-y divide-[#E5DED2]">
+                  {filteredReports.map((report) => (
+                    <tr
+                      key={report.analysis_id}
+                      className="transition hover:bg-[#FAF8F4]"
+                    >
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-lg bg-[#F4EDE0] p-2 text-[#14213D]">
+                            <FileText size={19} />
+                          </div>
+                          <div>
+                            <p className="max-w-[220px] truncate text-sm font-semibold">
                               {report.filename}
                             </p>
-
-                            <p className="text-gray-400 text-xs mt-1">
-                              Document ID: {report.document_id}
+                            <p className="mt-1 text-xs text-[#687386]">
+                              Document #{report.document_id}
                             </p>
                           </div>
-
-                          <div className="space-y-3">
-
-                            {logoResults.map((logo, index) => (
-                              <div
-                                key={`${report.analysis_id}-${logo.image_id}-${index}`}
-                                className="border border-gray-700 rounded-lg p-4"
-                              >
-
-                                <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-
-                                  <p className="font-medium">
-                                    Image {logo.image_id}
-                                    {logo.page_number
-                                      ? ` · Page ${logo.page_number}`
-                                      : ""}
-                                  </p>
-
-                                  <span
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold ${getLogoStatusStyle(
-                                      logo.status
-                                    )}`}
-                                  >
-                                    {logo.status}
-                                  </span>
-
-                                </div>
-
-                                <p className="text-gray-300 text-sm mb-3">
-                                  {logo.message}
-                                </p>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-                                  <div>
-                                    <p className="text-gray-400 text-xs">
-                                      Matching Features
-                                    </p>
-
-                                    <p className="font-semibold mt-1">
-                                      {logo.matching_features}
-                                    </p>
-                                  </div>
-
-                                  <div>
-                                    <p className="text-gray-400 text-xs">
-                                      Geometric Inliers
-                                    </p>
-
-                                    <p className="font-semibold mt-1">
-                                      {logo.geometric_inliers}
-                                    </p>
-                                  </div>
-
-                                  <div>
-                                    <p className="text-gray-400 text-xs">
-                                      Match Ratio
-                                    </p>
-
-                                    <p className="font-semibold mt-1">
-                                      {logo.inlier_ratio !== undefined
-                                        ? `${(logo.inlier_ratio * 100).toFixed(1)}%`
-                                        : "N/A"}
-                                    </p>
-                                  </div>
-
-                                </div>
-
-                              </div>
-                            ))}
-
-                          </div>
-
                         </div>
-                      );
-                    })}
+                      </td>
 
-                  </div>
-                )}
+                      <td className="px-6 py-5 text-sm font-medium">
+                        #{report.analysis_id}
+                      </td>
 
-              </div>
-
-              <p className="text-gray-500 text-xs mt-5">
-                Logo verification uses visual feature matching and is an indicative check, not a guarantee of logo authenticity.
-              </p>
-
-            </div>
-
-            {/* Review History */}
-            <div className="bg-[#17243a] border border-gray-700 rounded-xl p-6">
-
-              <h3 className="text-xl font-semibold mb-5">
-                Recent Review History
-              </h3>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[600px]">
-
-                  <thead>
-                    <tr className="text-gray-400 border-b border-gray-700">
-                      <th className="py-3">Document</th>
-                      <th className="py-3">Date</th>
-                      <th className="py-3">Score</th>
-                      <th className="py-3">Issues</th>
-                      <th className="py-3">Status</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {reports.map((report) => (
-                      <tr
-                        key={report.analysis_id}
-                        className="border-b border-gray-800"
-                      >
-
-                        <td className="py-4">
-                          {report.filename}
-                        </td>
-
-                        <td className="py-4 text-gray-400">
-                          {new Date(
-                            report.analyzed_at
-                          ).toLocaleDateString("en-IN")}
-                        </td>
-
-                        <td className="py-4 text-blue-400 font-semibold">
+                      <td className="px-6 py-5">
+                        <span className={`text-sm font-bold ${getScoreColor(Number(report.compliance_score))}`}>
                           {report.compliance_score}%
-                        </td>
+                        </span>
+                      </td>
 
-                        <td className="py-4">
+                      <td className="px-6 py-5">
+                        <span className="rounded-lg bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-600">
                           {report.total_issues}
-                        </td>
+                        </span>
+                      </td>
 
-                        <td className="py-4">
-                          <span className="bg-[#263b58] px-3 py-1 rounded-full text-sm">
-                            {report.compliance_score >= 80
-                              ? "Approved"
-                              : "Needs Review"}
-                          </span>
-                        </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2 text-sm text-[#687386]">
+                          <Clock size={15} />
+                          {report.analyzed_at
+                            ? new Date(report.analyzed_at).toLocaleDateString()
+                            : "—"}
+                        </div>
+                      </td>
 
-                      </tr>
-                    ))}
-
-                    {reports.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="py-8 text-center text-gray-400"
-                        >
-                          No analysis history found. Review a document first.
-                        </td>
-                      </tr>
-                    )}
-
-                  </tbody>
-                </table>
-              </div>
+                      <td className="px-6 py-5">
+                        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                          Number(report.compliance_score) >= 80
+                            ? "bg-green-50 text-green-700"
+                            : Number(report.compliance_score) >= 50
+                            ? "bg-orange-50 text-orange-700"
+                            : "bg-red-50 text-red-700"
+                        }`}>
+                          {getScoreLabel(Number(report.compliance_score))}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </>
-        )}
+          )}
 
-        <p className="text-gray-500 text-xs mt-8">
-          BrandGuard AI · Reports Dashboard
-        </p>
+          {!loading && !error && filteredReports.length > 0 && (
+            <div className="border-t border-[#E5DED2] px-6 py-4 text-xs text-[#687386]">
+              Showing {filteredReports.length} of {totalReviews} reports
+            </div>
+          )}
+        </section>
 
-      </section>
-    </main>
+        {/* Footer Note */}
+        <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#E5DED2] bg-white/70 p-5">
+          <ShieldCheck className="mt-0.5 shrink-0 text-[#FF6B5B]" size={21} />
+          <div>
+            <p className="text-sm font-semibold">BrandGuard AI Insights</p>
+            <p className="mt-1 text-xs leading-5 text-[#687386]">
+              These reports summarize automated brand-compliance checks.
+              Review detected issues and suggested corrections before
+              publishing content. Final approval should remain with a human
+              reviewer.
+            </p>
+          </div>
+        </div>
+
+      </main>
+    </div>
   );
 }
